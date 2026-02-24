@@ -1,0 +1,57 @@
+# Type change causing rewrite (the canonical case from the spec)
+- initial_schema: |-
+    CREATE TABLE products (id int);
+  statements: |-
+    ALTER TABLE products ALTER COLUMN id TYPE bigint;
+  expected_rewrites:
+    - - table: products
+
+# No-rewrite: adding a nullable column
+- initial_schema: |-
+    CREATE TABLE products (id int);
+  statements: |-
+    ALTER TABLE products ADD COLUMN name text;
+  expected_rewrites:
+    - []
+
+# No-rewrite: table rename (oid stays the same, relfilenode unchanged)
+- initial_schema: |-
+    CREATE TABLE orders (id int);
+  statements: |-
+    ALTER TABLE orders RENAME TO orders_archive;
+  expected_rewrites:
+    - []
+
+# No-rewrite: SET NOT NULL
+- initial_schema: |-
+    CREATE TABLE users (id int, email text);
+  statements: |-
+    ALTER TABLE users ALTER COLUMN email SET NOT NULL;
+  expected_rewrites:
+    - []
+
+# No-rewrite: DROP COLUMN
+- initial_schema: |-
+    CREATE TABLE logs (id int, message text, details text);
+  statements: |-
+    ALTER TABLE logs DROP COLUMN details;
+  expected_rewrites:
+    - []
+
+# Type change with USING clause
+- initial_schema: |-
+    CREATE TABLE items (id int);
+  statements: |-
+    ALTER TABLE items ALTER COLUMN id TYPE bigint USING id::bigint;
+  expected_rewrites:
+    - - table: items
+
+# CREATE TABLE followed by ALTER TYPE in same transaction:
+# first statement creates the table (not a rewrite), second rewrites it
+- initial_schema: ""
+  statements: |-
+    CREATE TABLE t (id int);
+    ALTER TABLE t ALTER COLUMN id TYPE bigint;
+  expected_rewrites:
+    - []
+    - - table: t

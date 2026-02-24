@@ -17,6 +17,7 @@
           mode: AccessExclusive
           lock_target: !relation
             alias: foobarz
+      table_rewrites: []
     - sql: ALTER TABLE foobarz DROP COLUMN email
       location:
         start_line: 2
@@ -27,3 +28,4 @@
           mode: AccessExclusive
           lock_target: !relation
             alias: foobarz
+      table_rewrites: []

@@ -32,6 +32,7 @@
           mode: AccessExclusive
           lock_target: !relation
             alias: frogs
+      table_rewrites: []
     - sql: ALTER TABLE frogs ADD COLUMN name INT
       location:
         start_line: 8
@@ -42,6 +43,7 @@
           mode: AccessExclusive
           lock_target: !relation
             alias: frogs
+      table_rewrites: []
     - sql: ALTER TABLE frogs ADD COLUMN e INT
       location:
         start_line: 13
@@ -52,6 +54,7 @@
           mode: AccessExclusive
           lock_target: !relation
             alias: frogs
+      table_rewrites: []
     - sql: ALTER TABLE frogs ADD COLUMN d INT
       location:
         start_line: 13
@@ -62,13 +65,16 @@
           mode: AccessExclusive
           lock_target: !relation
             alias: frogs
+      table_rewrites: []
     - sql: SELECT 1
       location:
         start_line: 14
         end_line: 14
       locks_acquired: []
+      table_rewrites: []
     - sql: SELECT 2
       location:
         start_line: 16
         end_line: 17
       locks_acquired: []
+      table_rewrites: []

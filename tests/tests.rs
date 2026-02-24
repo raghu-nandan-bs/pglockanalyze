@@ -1,4 +1,5 @@
 use pglockanalyze::analyzer::*;
+use pglockanalyze::rewrite::*;
 use pglockanalyze::statement::*;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
@@ -29,10 +30,11 @@ fn test_all() {
     test_wrap_in_transaction_rollback();
     test_no_wrap_in_transaction_commit();
     test_locations();
+    test_table_rewrites();
 }
 
 fn test_wrap_in_transaction_rollback() {
-    let test_cases = load_fixture_file("fixture.yml");
+    let test_cases: Vec<TestCase> = load_fixture_file("fixture.yml");
 
     for test_case in &test_cases {
         reset_db(&test_case.initial_schema);
@@ -56,7 +58,7 @@ fn test_wrap_in_transaction_rollback() {
 }
 
 fn test_no_wrap_in_transaction_commit() {
-    let test_cases = load_fixture_file("fixture_non_wrapping.yml");
+    let test_cases: Vec<TestCase> = load_fixture_file("fixture_non_wrapping.yml");
 
     for test_case in &test_cases {
         reset_db(&test_case.initial_schema);
@@ -80,7 +82,7 @@ fn test_no_wrap_in_transaction_commit() {
 }
 
 fn test_locations() {
-    let test_cases = load_fixture_file("fixture_locations.yml");
+    let test_cases: Vec<TestCase> = load_fixture_file("fixture_locations.yml");
 
     for test_case in &test_cases {
         reset_db(&test_case.initial_schema);
@@ -103,7 +105,58 @@ fn test_locations() {
     }
 }
 
-fn load_fixture_file(fname: &str) -> Vec<TestCase> {
+/// Test cases for table rewrite detection.
+///
+/// Uses a separate assertion approach that checks only the `table_rewrites`
+/// field per statement, because ALTER COLUMN TYPE operations produce locks
+/// with OID-based aliases that vary across runs.
+#[derive(Debug, Deserialize)]
+struct RewriteTestCase {
+    initial_schema: String,
+    statements: String,
+    /// Expected table_rewrites per statement (in order).
+    expected_rewrites: Vec<TableRewrites>,
+}
+
+fn test_table_rewrites() {
+    let test_cases: Vec<RewriteTestCase> = load_fixture_file("fixture_rewrites.yml");
+
+    for test_case in &test_cases {
+        reset_db(&test_case.initial_schema);
+
+        let cfg = AnalyzerConfig {
+            db_connection_string: db(),
+            distinct_transactions: false,
+            commit: false,
+        };
+
+        let stmts = Analyzer::try_from(cfg)
+            .unwrap()
+            .analyze(&test_case.statements)
+            .unwrap();
+
+        assert_eq!(
+            stmts.len(),
+            test_case.expected_rewrites.len(),
+            "statement count mismatch for input: {}",
+            test_case.statements
+        );
+
+        for (i, (stmt, expected)) in stmts
+            .iter()
+            .zip(test_case.expected_rewrites.iter())
+            .enumerate()
+        {
+            assert_eq!(
+                &stmt.table_rewrites, expected,
+                "table_rewrites mismatch for statement {} ({})",
+                i, stmt.sql
+            );
+        }
+    }
+}
+
+fn load_fixture_file<T: serde::de::DeserializeOwned>(fname: &str) -> Vec<T> {
     let file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join(file!())
         .parent()
