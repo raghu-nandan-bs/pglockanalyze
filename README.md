@@ -82,3 +82,45 @@ Options:
 ## License
 
 pglockanalyze is licensed under the [Apache 2.0 license](LICENSE).
+
+
+---
+
+## Updates:
+
+Added a line that indicates whethere there was table rewrites or not.
+
+```
+ALTER TABLE test_data DROP COLUMN status
+	acquired `AccessShare` lock on relation `pg_class_tblspc_relfilenode_index` (oid=3455)
+	acquired `AccessShare` lock on relation `pg_class_oid_index` (oid=2662)
+	acquired `AccessExclusive` lock on relation `test_data` (oid=16386)
+	acquired `AccessShare` lock on relation `pg_class_relname_nsp_index` (oid=2663)
+	acquired `AccessShare` lock on relation `pg_class` (oid=1259)
+	(no table rewrites)
+╭─  raghu@atomic ~/code/aw-01/pglockanalyze
+╰─❯ ./target/debug/pglockanalyze --db "postgres://postgres@127.0.0.1:5432/testdb" sample.sql
+ALTER TABLE test_data ADD COLUMN seq SERIAL
+	acquired `Share` lock on relation `16400` (oid=16400)
+	acquired `AccessExclusive` lock on relation `16397` (oid=16397)
+	acquired `AccessExclusive` lock on relation `test_data_pkey` (oid=16393)
+	acquired `AccessExclusive` lock on relation `pg_toast.pg_toast_16386` (oid=16391)
+	acquired `AccessShare` lock on relation `pg_class_oid_index` (oid=2662)
+	acquired `AccessShare` lock on relation `pg_class` (oid=1259)
+	acquired `AccessExclusive` lock on relation `16401` (oid=16401)
+	acquired `AccessExclusive` lock on object `16398 (class: pg_type)` (oid=16398)
+	acquired `AccessExclusive` lock on relation `16400` (oid=16400)
+	acquired `Share` lock on relation `test_data` (oid=16386)
+	acquired `AccessShare` lock on relation `test_data` (oid=16386)
+	acquired `ShareRowExclusive` lock on relation `16395` (oid=16395)
+	acquired `AccessShare` lock on object `2200 (class: pg_namespace)` (oid=2200)
+	acquired `ShareUpdateExclusive` lock on relation `16401` (oid=16401)
+	acquired `AccessShare` lock on relation `pg_class_tblspc_relfilenode_index` (oid=3455)
+	acquired `AccessExclusive` lock on object `16399 (class: pg_type)` (oid=16399)
+	acquired `AccessExclusive` lock on relation `test_data` (oid=16386)
+	acquired `AccessShare` lock on relation `pg_class_relname_nsp_index` (oid=2663)
+	acquired `AccessExclusive` lock on relation `pg_toast.pg_toast_16386_index` (oid=16392)
+	acquired `RowExclusive` lock on relation `16395` (oid=16395)
+	acquired `AccessExclusive` lock on relation `16395` (oid=16395)
+	rewrote table `test_data`
+	```

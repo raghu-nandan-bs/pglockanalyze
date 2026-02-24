@@ -1,5 +1,6 @@
 use crate::analyzer::AnalyzeError;
 use crate::lock::{Lock, Locks};
+use crate::rewrite::{RelfilenodeSnapshot, TableRewrites};
 use postgres as pg;
 use serde::{Deserialize, Serialize};
 use sqlparser::ast::Spanned;
@@ -27,6 +28,8 @@ impl From<sqlparser::tokenizer::Span> for Location {
 pub struct Statement {
     pub sql: String,
     pub locks_acquired: Locks,
+    #[serde(default)]
+    pub table_rewrites: TableRewrites,
     pub location: Location,
 }
 
@@ -38,14 +41,24 @@ impl Statement {
         stmt: AstStatement,
     ) -> Result<Self, AnalyzeError> {
         let locks_before = Self::detect_locks(db, pid)?;
+        // Snapshot relfilenodes on the TRANSACTION connection (not the observer),
+        // because pg_class changes are visible within the same transaction but
+        // not from a separate connection until commit.
+        let relfilenodes_before = Self::snapshot_relfilenodes(tx)?;
+
         let sql = stmt.to_string();
         tx.execute(&sql, &[])?;
+
         let locks_after = Self::detect_locks(db, pid)?;
+        let relfilenodes_after = Self::snapshot_relfilenodes(tx)?;
+
         let locks_acquired = Locks::compute_acquired(locks_before, locks_after);
+        let table_rewrites = TableRewrites::compute(relfilenodes_before, relfilenodes_after);
 
         Ok(Statement {
             sql,
             locks_acquired,
+            table_rewrites,
             location: stmt.span().into(),
         })
     }
@@ -84,10 +97,41 @@ WHERE
             .map(Lock::try_from)
             .collect()
     }
+
+    /// Snapshot relfilenodes for all tables in the public schema.
+    ///
+    /// Must be called on the TRANSACTION connection (not the observer),
+    /// because pg_class changes are visible within the same transaction
+    /// but not from a separate connection until commit.
+    fn snapshot_relfilenodes(
+        tx: &mut pg::Transaction,
+    ) -> Result<Vec<RelfilenodeSnapshot>, AnalyzeError> {
+        const SQL: &str = "\
+SELECT oid, relname, relfilenode
+FROM pg_class
+WHERE relnamespace = 'public'::regnamespace
+    AND relkind IN ('r', 'p')
+    AND relfilenode != 0";
+
+        let rows = tx.query(SQL, &[])?;
+
+        Ok(rows
+            .iter()
+            .map(|row| RelfilenodeSnapshot {
+                oid: row.get::<_, u32>("oid"),
+                relname: row.get::<_, String>("relname"),
+                relfilenode: row.get::<_, u32>("relfilenode"),
+            })
+            .collect())
+    }
 }
 
 impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}\n{}", self.sql, self.locks_acquired)
+        write!(
+            f,
+            "{}\n{}\n{}",
+            self.sql, self.locks_acquired, self.table_rewrites
+        )
     }
 }

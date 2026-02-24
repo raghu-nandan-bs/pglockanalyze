@@ -16,6 +16,7 @@
           mode: AccessExclusive
           lock_target: !relation
             alias: users
+      table_rewrites: []
 
 - initial_schema: |-
     CREATE TABLE products (
@@ -35,6 +36,7 @@
           mode: AccessExclusive
           lock_target: !relation
             alias: products
+      table_rewrites: []
 
 - initial_schema: |-
     CREATE TABLE orders (
@@ -55,6 +57,7 @@
             # since the locks observer is a different pid, it cannot see the
             # rename (otherwise this would be orders_archive)
             alias: orders
+      table_rewrites: []
 
 - initial_schema: |-
     CREATE TABLE customers (
@@ -75,11 +78,13 @@
           mode: AccessExclusive
           lock_target: !relation
             alias: customers
+      table_rewrites: []
     - sql: ALTER TABLE customers RENAME COLUMN email TO contact_email
       location:
         start_line: 2
         end_line: 2
       locks_acquired: []
+      table_rewrites: []
 
 - initial_schema: |-
     CREATE TABLE logs (
@@ -100,6 +105,7 @@
           mode: AccessExclusive
           lock_target: !relation
             alias: logs
+      table_rewrites: []
 
 - initial_schema: |-
     CREATE TABLE audits (
@@ -120,8 +126,10 @@
           mode: AccessExclusive
           lock_target: !relation
             alias: audits
+      table_rewrites: []
     - sql: ALTER TABLE audits RENAME TO audit_logs
       location:
         start_line: 2
         end_line: 2
       locks_acquired: []
+      table_rewrites: []
